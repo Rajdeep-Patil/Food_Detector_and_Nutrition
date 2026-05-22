@@ -1,0 +1,24 @@
+# Virtual Environment
+CNNImageClassification/
+.env
+
+# Logs
+logs/
+*.log
+
+# ML Artifacts / Models
+artifacts/
+*.pkl
+
+# Uploads
+static/uploads/
+
+#.env
+.env
+
+#Data
+Food-Calorie-Estimation-2/
+
+# Python Cache
+__pycache__/
+*.pyc

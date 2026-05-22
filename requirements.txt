@@ -1,0 +1,14 @@
+setuptools
+optuna
+pandas
+matplotlib
+numpy 
+torch
+roboflow
+torchvision
+Pillow
+Werkzeug
+flask
+scikit-learn
+seaborn
+pymongo
