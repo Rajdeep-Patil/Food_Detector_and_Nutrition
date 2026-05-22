@@ -1,49 +1,47 @@
 import os
 import uuid
 import datetime
-from datetime import timezone  
+from datetime import timezone
 from flask import Flask, render_template, request, jsonify
 from werkzeug.utils import secure_filename
-from pymongo import MongoClient, server_api  
-from pymongo.server_api import ServerApi
-from src.pipeline.predict_pipeline import PredictPipeline
-from src.logger import logger
+from pymongo import MongoClient
 import certifi
 from dotenv import load_dotenv
+
+from src.pipeline.predict_pipeline import PredictPipeline
+from src.logger import logger
 
 load_dotenv()
 
 app = Flask(__name__)
+
+# ---------------- CONFIG ----------------
 app.config["UPLOAD_FOLDER"] = os.path.join("static", "uploads")
-app.config["MAX_CONTENT_LENGTH"] = 10 * 1024 * 1024  
+app.config["MAX_CONTENT_LENGTH"] = 10 * 1024 * 1024
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "webp"}
 
 os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
 
-MONGO_URI = os.getenv("MONGODB_URL_KEY") 
+# ---------------- MONGO ----------------
+MONGO_URI = os.getenv("MONGODB_URL_KEY")
 
 if not MONGO_URI:
-    logger.error("🚨 Critical Error: 'MONGODB_URL_KEY' environment variable not found!")
+    logger.error("MONGODB_URL_KEY not found")
     MONGO_URI = "mongodb://localhost:27017/"
 
 try:
-    client = MongoClient(
-        MONGO_URI, 
-        tlsCAFile=certifi.where(),
-        server_api=server_api.ServerApi("1")
-    )
-    db = client["food_detector_db"]         
-    
-    records_collection = db["predictions"] 
-    print("✅ [SUCCESS] MongoDB Successfully Connected!")
-    logger.info("MongoDB connected successfully using MONGODB_URL_KEY.")
+    client = MongoClient(MONGO_URI, tlsCAFile=certifi.where())
+    db = client["food_detector_db"]
+    records_collection = db["predictions"]
+    print("✅ MongoDB Connected")
 except Exception as e:
     records_collection = None
-    print(f"🚨 [ERROR] MongoDB Connection Failed: {e}")
-    logger.error(f"MongoDB connection error: {e}")
-    
-predictor = PredictPipeline()
+    print("❌ MongoDB Failed:", e)
 
+# ---------------- LAZY MODEL LOADING (IMPORTANT) ----------------
+predictor = None
+
+# ---------------- NUTRITION DB ----------------
 NUTRITION_DB = {
     "AW cola": {"calories": 150, "sugar": 39.0, "protein": 0.0, "fiber": 0.0, "serving": "355 ml can"},
     "Beijing Beef": {"calories": 470, "sugar": 25.0, "protein": 26.0, "fiber": 3.0, "serving": "1 serving (~340 g)"},
@@ -83,124 +81,112 @@ NUTRITION_DB = {
     "water_spinach": {"calories": 20, "sugar": 1.0, "protein": 2.5, "fiber": 2.0, "serving": "1 cup (~56 g)"},
 }
 
-def get_detected_food_nutrition(top5_predictions: list) -> dict:
-    foods_list = []
-    total_calories = 0
-    total_sugar = 0.0
-    total_protein = 0.0
-    total_fiber = 0.0
-
-    for label, confidence in top5_predictions:
-        if confidence >= 0.5:  
-            key = label.strip()
-            info = NUTRITION_DB.get(key)
-            conf_percent = round(confidence * 100, 1)
-
-            if info:
-                foods_list.append({
-                    "name":       key,
-                    "confidence": conf_percent,
-                    "calories":   info["calories"],
-                    "sugar":      info["sugar"],
-                    "protein":    info["protein"],
-                    "fiber":      info["fiber"],
-                    "serving":    info["serving"],
-                })
-                total_calories += info["calories"]
-                total_sugar += info["sugar"]
-                total_protein += info["protein"]
-                total_fiber += info["fiber"]
-            else:
-                foods_list.append({
-                    "name":       key,
-                    "confidence": conf_percent,
-                    "calories":   "N/A", "sugar": "N/A", "protein": "N/A", "fiber": "N/A", "serving": "N/A"
-                })
-
-    return {
-        "foods": foods_list,
-        "totals": {
-            "calories": total_calories,
-            "sugar":    round(total_sugar, 1),
-            "protein":  round(total_protein, 1),
-            "fiber":    round(total_fiber, 1)
-        }
-    }
-
+# ---------------- HELPERS ----------------
 def allowed_file(filename):
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
 
+
+def get_nutrition(top5):
+    foods = []
+    totals = {"calories": 0, "sugar": 0, "protein": 0, "fiber": 0}
+
+    for label, score in top5:
+        if score < 0.5:
+            continue
+
+        info = NUTRITION_DB.get(label.strip())
+        conf = round(score * 100, 1)
+
+        if info:
+            foods.append({
+                "name": label,
+                "confidence": conf,
+                "calories": info["calories"],
+                "sugar": info["sugar"],
+                "protein": info["protein"],
+                "fiber": info["fiber"],
+                "serving": info["serving"],
+            })
+
+            totals["calories"] += info["calories"]
+            totals["sugar"] += info["sugar"]
+            totals["protein"] += info["protein"]
+            totals["fiber"] += info["fiber"]
+
+    return {"foods": foods, "totals": totals}
+
+
+# ---------------- ROUTES ----------------
 @app.route("/")
 def index():
     return render_template("index.html")
 
+
 @app.route("/predict", methods=["POST"])
 def predict():
+    global predictor
+
     user_name = request.form.get("user_name", "Anonymous").strip() or "Anonymous"
-    
+
     if "file" not in request.files:
-        return jsonify({"error": "No file uploaded"}), 400
+        return jsonify({"error": "No file"}), 400
 
     file = request.files["file"]
+
     if file.filename == "" or not allowed_file(file.filename):
-        return jsonify({"error": "Invalid file type. Use PNG / JPG / JPEG / WEBP"}), 400
+        return jsonify({"error": "Invalid file"}), 400
 
     try:
-        ext      = file.filename.rsplit(".", 1)[1].lower()
-        unique_id = uuid.uuid4().hex
-        filename = secure_filename(f"{unique_id}.{ext}")
-        filepath = os.path.join(app.config["UPLOAD_FOLDER"], filename)
+        # ---------------- SAVE IMAGE ----------------
+        ext = file.filename.rsplit(".", 1)[1].lower()
+        filename = f"{uuid.uuid4().hex}.{ext}"
+        filepath = os.path.join(app.config["UPLOAD_FOLDER"], secure_filename(filename))
         file.save(filepath)
 
+        # ---------------- LAZY LOAD MODEL ----------------
+        if predictor is None:
+            predictor = PredictPipeline()
+
+        # ---------------- PREDICT ----------------
         labels, top5 = predictor.predict(filepath)
-        image_url    = f"/static/uploads/{filename}"
 
         if not top5:
-            return jsonify({"error": "No food detected"}), 400
-            
-        nutrition = get_detected_food_nutrition(top5)
+            return jsonify({"error": "No prediction"}), 400
+
+        nutrition = get_nutrition(top5)
 
         if not nutrition["foods"]:
-            return jsonify({"error": "Detected foods are below 50% confidence threshold"}), 400
+            return jsonify({"error": "Low confidence"}), 400
 
-        document_id = f"req_{unique_id[:12]}"
-        
-        current_utc_time = datetime.datetime.now(timezone.utc).isoformat()
-        
-        mongo_document = {
-            "_id": document_id,                    
-            "user_name": user_name,                
-            "image_name": filename,
+        image_url = f"/static/uploads/{filename}"
+        req_id = f"req_{uuid.uuid4().hex[:10]}"
+
+        document = {
+            "_id": req_id,
+            "user_name": user_name,
             "image_url": image_url,
             "detected_labels": [f["name"] for f in nutrition["foods"]],
-            "nutrition_details": nutrition["foods"],
-            "total_summary": nutrition["totals"],
-            "timestamp": current_utc_time
+            "nutrition": nutrition,
+            "timestamp": datetime.datetime.now(timezone.utc).isoformat()
         }
-        
-        if records_collection is not None:
-            try:
-                records_collection.insert_one(mongo_document)
-                print(f"✅ [SUCCESS] Data saved to MongoDB! ID: {document_id}")
-                logger.info(f"Successfully stored record {document_id} via MONGODB_URL_KEY")
-            except Exception as db_err:
-                print(f"🚨 [MONGODB WRITE ERROR] Failed to save data: {db_err}")
-                logger.error(f"MongoDB Insert failure: {db_err}")
-        else:
-            print("🚨 [MONGODB SKIPPED] Collection is not active (check your MONGODB_URL_KEY).")
+
+        if records_collection:
+            records_collection.insert_one(document)
 
         return jsonify({
-            "success":   True,
-            "id":        document_id,
-            "user_name": user_name,
-            "labels":    mongo_document["detected_labels"],
+            "success": True,
+            "id": req_id,
+            "labels": document["detected_labels"],
             "image_url": image_url,
             "nutrition": nutrition
         })
 
     except Exception as e:
-        logger.error(f"Prediction error: {e}")
+        logger.error(str(e))
         return jsonify({"error": str(e)}), 500
 
+
+# ---------------- RUN ----------------
 if __name__ == "__main__":
-    app.run(debug=False,host="0.0.0.0", port=5000)
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host="0.0.0.0", port=port)
