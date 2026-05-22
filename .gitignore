@@ -6,9 +6,6 @@ CNNImageClassification/
 logs/
 *.log
 
-# ML Artifacts / Models
-artifacts/
-*.pkl
 
 # Uploads
 static/uploads/
