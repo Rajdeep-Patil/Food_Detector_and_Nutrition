@@ -41,6 +41,8 @@ except Exception as e:
     records_collection = None
     print(f"🚨 [ERROR] MongoDB Connection Failed: {e}")
     logger.error(f"MongoDB connection error: {e}")
+    
+predictor = PredictPipeline()
 
 NUTRITION_DB = {
     "AW cola": {"calories": 150, "sugar": 39.0, "protein": 0.0, "fiber": 0.0, "serving": "355 ml can"},
@@ -134,7 +136,6 @@ def index():
 
 @app.route("/predict", methods=["POST"])
 def predict():
-    predictor = PredictPipeline()
     user_name = request.form.get("user_name", "Anonymous").strip() or "Anonymous"
     
     if "file" not in request.files:
