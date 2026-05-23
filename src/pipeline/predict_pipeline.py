@@ -1,120 +1,92 @@
+import sys
+import warnings
+warnings.filterwarnings("ignore")
+
 import torch
 import numpy as np
 from PIL import Image
-from torchvision.transforms import transforms
-import sys
+from torchvision import transforms
 
 from src.constants import (
     IMAGE_SIZE,
     IMAGENET_MEAN,
     IMAGENET_STD,
     MODEL_PATH,
-    CLASSES_PATH
+    CLASSES_PATH,
 )
-
 from src.utils.helper import load_model, load_object
 from src.logger import logger
 from src.exception import CustomException
 
-_transform = transforms.Compose([
-    transforms.Resize(256),
-    transforms.CenterCrop(224),
-    transforms.Normalize(
-        mean=IMAGENET_MEAN,
-        std=IMAGENET_STD
-    ),
-])
-
 
 class PredictPipeline:
-
     def __init__(self):
-
-        self.model = None
+        self.model       = None
         self.class_names = None
+        self.device      = torch.device("cpu")
 
-        # FORCE CPU FOR RENDER
-        self.device = torch.device("cpu")
-
-        # LOAD ONCE
         self._load_artifacts()
 
-    def _load_artifacts(self):
+        # ✅ IMAGE_SIZE ka tuple ya integer dono handle hoga
+        if isinstance(IMAGE_SIZE, (tuple, list)):
+            resize_to = (int(IMAGE_SIZE[0]), int(IMAGE_SIZE[1]))
+        else:
+            resize_to = (int(IMAGE_SIZE), int(IMAGE_SIZE))
 
-        if self.model is None:
-            logger.info("Loading model...")
+        self.transform = transforms.Compose([
+            transforms.Resize(resize_to),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=IMAGENET_MEAN, std=IMAGENET_STD),
+        ])
 
-            self.model = load_model(MODEL_PATH)
+    def _load_artifacts(self) -> None:
+        try:
+            if self.model is None:
+                logger.info("Loading model from: %s", MODEL_PATH)
+                self.model = load_model(MODEL_PATH)
+                self.model.to(self.device)
+                self.model = self.model.half()   # float16 — RAM ~50% kam
+                self.model.eval()
+                logger.info("Model loaded in half precision (float16).")
 
-            self.model.to(self.device)
+            if self.class_names is None:
+                logger.info("Loading class names from: %s", CLASSES_PATH)
+                self.class_names = load_object(CLASSES_PATH)
+                logger.info("Loaded %d class names.", len(self.class_names))
 
-            self.model.eval()
-
-        if self.class_names is None:
-
-            logger.info("Loading class names...")
-
-            self.class_names = load_object(CLASSES_PATH)
+        except Exception as e:
+            logger.error("Artifact loading failed: %s", e)
+            raise CustomException(e, sys)
 
     def predict(self, image_path: str, threshold: float = 0.5):
-
         try:
+            logger.info("Running inference on: %s", image_path)
 
-            logger.info(f"Predicting: {image_path}")
-
-            img = Image.open(image_path).convert("RGB")
-
-            img = img.resize(IMAGE_SIZE)
-
-            img = np.array(img, dtype=np.float32) / 255.0
-
-            img = torch.tensor(img)
-
-            img = img.permute(2, 0, 1)
-
-            img = img.unsqueeze(0)
-
-            img = _transform(img)
-
-            img = img.to(self.device).float()
+            image  = Image.open(image_path).convert("RGB")
+            tensor = self.transform(image)
+            tensor = tensor.half().unsqueeze(0).to(self.device)
 
             with torch.no_grad():
+                logits = self.model(tensor)
+                scores = torch.sigmoid(logits)
 
-                outputs = torch.sigmoid(
-                    self.model(img)
-                )
-
-                predicted = (
-                    outputs > threshold
-                ).float().squeeze()
+            scores_np = scores.squeeze().cpu().float().numpy()
 
             predicted_labels = [
-
                 self.class_names[i]
-
-                for i, v in enumerate(
-                    predicted.cpu().numpy()
-                )
-
-                if v == 1.0
+                for i, score in enumerate(scores_np)
+                if score >= threshold
             ]
 
-            scores = outputs.squeeze().cpu().numpy()
-
-            top5_idx = scores.argsort()[::-1][:5]
-
+            top5_idx = scores_np.argsort()[::-1][:5]
             top5 = [
-
-                (
-                    self.class_names[i],
-                    float(scores[i])
-                )
-
+                (self.class_names[i], float(scores_np[i]))
                 for i in top5_idx
             ]
 
+            logger.info("Labels above threshold: %s", predicted_labels)
             return predicted_labels, top5
 
         except Exception as e:
-
+            logger.error("Prediction error for %s: %s", image_path, e)
             raise CustomException(e, sys)

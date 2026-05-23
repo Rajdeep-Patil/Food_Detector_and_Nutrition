@@ -4,6 +4,7 @@ warnings.filterwarnings(
     message="Collection objects do not implement truth value testing"
 )
 
+import gc
 import os
 import uuid
 import datetime
@@ -39,8 +40,8 @@ os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
 # ================================================================
 class MongoManager:
     def __init__(self, uri: str, db_name: str, collection_name: str) -> None:
-        self._client         = None
-        self._db_name        = db_name
+        self._client          = None
+        self._db_name         = db_name
         self._collection_name = collection_name
 
         if not uri:
@@ -88,9 +89,12 @@ mongo = MongoManager(
 
 
 # ================================================================
-# MODEL
+# MODEL — load once, reuse across requests
 # ================================================================
 predictor = PredictPipeline()
+
+# ✅ Force garbage collection after model load to free unused RAM
+gc.collect()
 
 
 # ================================================================
@@ -140,11 +144,11 @@ NUTRITION_DB: dict = {
 # HELPER FUNCTIONS
 # ================================================================
 def get_detected_food_nutrition(top5_predictions: list) -> dict:
-    foods_list: list = []
-    total_calories = 0
-    total_sugar    = 0.0
-    total_protein  = 0.0
-    total_fiber    = 0.0
+    foods_list:    list  = []
+    total_calories       = 0
+    total_sugar          = 0.0
+    total_protein        = 0.0
+    total_fiber          = 0.0
 
     for label, confidence in top5_predictions:
         if confidence < 0.5:
@@ -225,6 +229,9 @@ def predict():
 
         # ---- Inference ------------------------------------------------
         _labels, top5 = predictor.predict(filepath)
+
+        # ✅ Free memory after each inference
+        gc.collect()
 
         if not top5:
             return jsonify({"error": "No food detected in the image"}), 400
