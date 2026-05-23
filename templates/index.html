@@ -36,7 +36,7 @@ h1 {
 .subtitle { color: var(--muted); font-size: 0.9rem; margin-bottom: 2rem; }
 .container { max-width: 900px; margin: 0 auto; }
 
-/* Input Field for Username */
+/* Username Input */
 .user-input-wrap {
     margin-bottom: 1.5rem;
     background: var(--surface);
@@ -64,7 +64,7 @@ h1 {
 }
 .user-input-wrap input:focus { border-color: var(--gold); }
 
-/* DB Meta Card */
+/* Meta Card */
 .meta-card {
     background: #141923;
     border: 1px solid #1f2d3d;
@@ -110,6 +110,7 @@ h1 {
     padding: 0.75rem 2.5rem;
     cursor: pointer;
     letter-spacing: 0.02em;
+    transition: background 0.2s;
 }
 .btn:hover { background: #ffb81c; }
 .btn:disabled { background: var(--border); color: var(--muted); cursor: not-allowed; }
@@ -137,6 +138,7 @@ h1 {
 }
 
 #results { display: none; margin-top: 2.5rem; }
+
 .section-title {
     font-family: 'Syne', sans-serif;
     font-size: 0.75rem;
@@ -159,103 +161,133 @@ h1 {
     padding: 0.3rem 0.9rem;
     font-size: 0.82rem;
     color: var(--text);
-    font-family: 'DM Sans', monospace;
 }
 
 .panels { display: grid; grid-template-columns: 1fr; gap: 1rem; margin-bottom: 2rem; }
 .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 1.25rem 1.25rem 1rem; }
 
 #nutrition-section { display: none; }
-.nutrition-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; overflow-x: auto; margin-bottom: 1.5rem; }
+.nutrition-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow-x: auto;
+    margin-bottom: 1.5rem;
+}
 .nut-table { width: 100%; min-width: 700px; border-collapse: collapse; font-size: 0.85rem; }
 .nut-table thead tr { background: var(--surface2); border-bottom: 1px solid var(--border); }
-.nut-table th { padding: 0.7rem 1rem; text-align: left; font-weight: 500; color: var(--muted); font-size: 0.75rem; text-transform: uppercase; white-space: nowrap; }
+.nut-table th {
+    padding: 0.7rem 1rem;
+    text-align: left;
+    font-weight: 500;
+    color: var(--muted);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
 .nut-table td { padding: 0.7rem 1rem; border-bottom: 1px solid var(--border); vertical-align: middle; }
 .nut-table tbody tr:last-child td { border-bottom: none; }
-.food-name { font-weight: 500; color: var(--text); font-family: 'DM Sans', monospace; }
+.food-name { font-weight: 500; color: var(--text); }
 .conf-badge {
-    display: inline-block; background: #1f1a0f; color: var(--gold); border-radius: 999px;
-    padding: 0.1rem 0.55rem; font-size: 0.72rem; font-weight: 500; border: 1px solid #3a2e0a; margin-left: 0.4rem;
+    display: inline-block;
+    background: #1f1a0f;
+    color: var(--gold);
+    border-radius: 999px;
+    padding: 0.1rem 0.55rem;
+    font-size: 0.72rem;
+    font-weight: 500;
+    border: 1px solid #3a2e0a;
+    margin-left: 0.4rem;
 }
 .num { text-align: right; color: var(--text); }
-.na { color: var(--muted); font-style: italic; text-align: right; }
+.na  { color: var(--muted); font-style: italic; text-align: right; }
 
 .totals-row { background: var(--surface2); border-top: 1.5px solid var(--gold-dim) !important; }
 .totals-row td { font-family: 'Syne', sans-serif; font-weight: 600; color: var(--gold) !important; }
 
 .summary-strip { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 2rem; }
-.summary-pill { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 0.7rem 1.2rem; flex: 1 1 140px; text-align: center; }
+.summary-pill {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 0.7rem 1.2rem;
+    flex: 1 1 140px;
+    text-align: center;
+}
 .pill-label { font-size: 0.72rem; text-transform: uppercase; color: var(--muted); margin-bottom: 0.3rem; }
-.pill-val { font-family: 'Syne', sans-serif; font-size: 1.4rem; font-weight: 700; color: var(--gold); }
-.pill-unit { font-size: 0.72rem; color: var(--muted); }
+.pill-val   { font-family: 'Syne', sans-serif; font-size: 1.4rem; font-weight: 700; color: var(--gold); }
+.pill-unit  { font-size: 0.72rem; color: var(--muted); }
 
-@media (max-width:768px){
-    .nut-table { min-width:620px; font-size:12px; }
-    .nut-table th, .nut-table td { padding:10px 12px; white-space: nowrap; }
+@media (max-width: 768px) {
+    .nut-table { min-width: 620px; font-size: 12px; }
+    .nut-table th, .nut-table td { padding: 10px 12px; white-space: nowrap; }
 }
 </style>
 </head>
 <body>
 <div class="container">
-<h1>🍱 Food Detector and Nutrition</h1>
-<p class="subtitle">Upload food photo — AI detects items & logs into securely linked MongoDB</p>
 
-<!-- Name Input -->
-<div class="user-input-wrap">
-    <label for="username-input">User Name</label>
-    <input type="text" id="username-input" placeholder="Enter your name" value="Anonymous" />
-</div>
+    <h1>🍱 Food Detector and Nutrition</h1>
+    <p class="subtitle">Upload food photo — AI detects items &amp; logs into securely linked MongoDB</p>
 
-<!-- Upload Area -->
-<div class="upload-zone" id="drop-zone">
-    <input type="file" id="file-input" accept=".png,.jpg,.jpeg,.webp" />
-    <div class="upload-icon">📷</div>
-    <p><strong>Click to upload</strong> or drag & drop</p>
-</div>
-
-<div id="preview-wrap">
-    <img id="preview-img" src="" alt="Preview" />
-    <button class="btn" id="analyze-btn">Analyze Food</button>
-</div>
-
-<div class="spinner" id="spinner"></div>
-<div class="error-box" id="error-box"></div>
-
-<!-- Results display -->
-<div id="results">
-    <div class="meta-card">
-        <div class="meta-item">👤 <strong>User:</strong> <span id="meta-user"></span></div>
+    <!-- Username -->
+    <div class="user-input-wrap">
+        <label for="username-input">User Name</label>
+        <input type="text" id="username-input" placeholder="Enter your name" value="Anonymous" />
     </div>
 
-    <p class="section-title">Detected Foods</p>
-    <div class="tag-wrap" id="tag-wrap"></div>
+    <!-- Upload Zone -->
+    <div class="upload-zone" id="drop-zone">
+        <input type="file" id="file-input" accept=".png,.jpg,.jpeg,.webp" />
+        <div class="upload-icon">📷</div>
+        <p><strong>Click to upload</strong> or drag &amp; drop</p>
+    </div>
 
-    <div class="panels">
-        <div class="panel">
-            <p class="section-title">Serving Sizes</p>
-            <div id="serving-list" style="font-size:0.83rem; line-height:1.9;"></div>
+    <!-- Preview -->
+    <div id="preview-wrap">
+        <img id="preview-img" src="" alt="Preview" />
+        <button class="btn" id="analyze-btn">Analyze Food</button>
+    </div>
+
+    <div class="spinner" id="spinner"></div>
+    <div class="error-box" id="error-box"></div>
+
+    <!-- Results -->
+    <div id="results">
+        <div class="meta-card">
+            <div class="meta-item">👤 <strong>User:</strong> <span id="meta-user"></span></div>
+        </div>
+
+        <p class="section-title">Detected Foods</p>
+        <div class="tag-wrap" id="tag-wrap"></div>
+
+        <div class="panels">
+            <div class="panel">
+                <p class="section-title">Serving Sizes</p>
+                <div id="serving-list" style="font-size:0.83rem; line-height:1.9;"></div>
+            </div>
+        </div>
+
+        <div id="nutrition-section">
+            <p class="section-title">Nutrition Breakdown</p>
+            <div class="summary-strip" id="summary-strip"></div>
+            <div class="nutrition-card">
+                <table class="nut-table">
+                    <thead>
+                        <tr>
+                            <th>Food</th>
+                            <th style="text-align:right">Cal (kcal)</th>
+                            <th style="text-align:right">Sugar (g)</th>
+                            <th style="text-align:right">Protein (g)</th>
+                            <th style="text-align:right">Fiber (g)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="nut-body"></tbody>
+                </table>
+            </div>
         </div>
     </div>
 
-    <div id="nutrition-section">
-        <p class="section-title">Nutrition Breakdown</p>
-        <div class="summary-strip" id="summary-strip"></div>
-        <div class="nutrition-card">
-            <table class="nut-table">
-                <thead>
-                    <tr>
-                        <th>Food</th>
-                        <th style="text-align:right">Cal (kcal)</th>
-                        <th style="text-align:right">Sugar (g)</th>
-                        <th style="text-align:right">Protein (g)</th>
-                        <th style="text-align:right">Fiber (g)</th>
-                    </tr>
-                </thead>
-                <tbody id="nut-body"></tbody>
-            </table>
-        </div>
-    </div>
-</div>
 </div>
 
 <script>
@@ -271,11 +303,17 @@ const results       = document.getElementById('results');
 
 let selectedFile = null;
 
+// ---- File selection ------------------------------------------------
 fileInput.addEventListener('change', e => handleFile(e.target.files[0]));
-dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag'); });
+
+dropZone.addEventListener('dragover', e => {
+    e.preventDefault();
+    dropZone.classList.add('drag');
+});
 dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag'));
 dropZone.addEventListener('drop', e => {
-    e.preventDefault(); dropZone.classList.remove('drag');
+    e.preventDefault();
+    dropZone.classList.remove('drag');
     handleFile(e.dataTransfer.files[0]);
 });
 
@@ -284,20 +322,22 @@ function handleFile(file) {
     selectedFile = file;
     previewImg.src = URL.createObjectURL(file);
     previewWrap.style.display = 'block';
-    results.style.display = 'none';
-    errorBox.style.display = 'none';
+    results.style.display     = 'none';
+    errorBox.style.display    = 'none';
 }
 
+// ---- Analyze button ------------------------------------------------
 analyzeBtn.addEventListener('click', async () => {
     if (!selectedFile) return;
-    analyzeBtn.disabled = true;
-    spinner.style.display = 'block';
-    errorBox.style.display = 'none';
-    results.style.display = 'none';
+
+    analyzeBtn.disabled       = true;
+    spinner.style.display     = 'block';
+    errorBox.style.display    = 'none';
+    results.style.display     = 'none';
 
     const fd = new FormData();
-    fd.append('file', selectedFile);
-    fd.append('user_name', usernameInput.value); 
+    fd.append('file',      selectedFile);
+    fd.append('user_name', usernameInput.value.trim() || 'Anonymous');
 
     try {
         const res  = await fetch('/predict', { method: 'POST', body: fd });
@@ -305,22 +345,25 @@ analyzeBtn.addEventListener('click', async () => {
         if (!res.ok || !data.success) throw new Error(data.error || 'Prediction failed');
         renderResults(data);
     } catch (err) {
-        errorBox.textContent = '⚠️ ' + err.message;
+        errorBox.textContent   = '⚠️ ' + err.message;
         errorBox.style.display = 'block';
     } finally {
         spinner.style.display = 'none';
-        analyzeBtn.disabled = false;
+        analyzeBtn.disabled   = false;
     }
 });
 
+// ---- Render results ------------------------------------------------
 function renderResults(data) {
+    // User name
     document.getElementById('meta-user').textContent = data.user_name || 'Anonymous';
 
+    // Detected food tags
     const tagWrap = document.getElementById('tag-wrap');
     tagWrap.innerHTML = '';
     (data.labels || []).forEach(lbl => {
         const t = document.createElement('span');
-        t.className = 'tag';
+        t.className   = 'tag';
         t.textContent = lbl.trim();
         tagWrap.appendChild(t);
     });
@@ -330,23 +373,32 @@ function renderResults(data) {
     const summStrip  = document.getElementById('summary-strip');
     const servList   = document.getElementById('serving-list');
 
-    nutBody.innerHTML = '';
+    nutBody.innerHTML   = '';
     summStrip.innerHTML = '';
-    servList.innerHTML = '';
+    servList.innerHTML  = '';
 
-    if (data.nutrition && data.nutrition.foods && data.nutrition.foods.length) {
+    const foods = data.nutrition && data.nutrition.foods;
+
+    if (foods && foods.length > 0) {
         nutSection.style.display = 'block';
 
-        data.nutrition.foods.forEach(f => {
+        // Serving sizes
+        foods.forEach(f => {
             if (f.serving && f.serving !== 'N/A') {
-                servList.innerHTML += `<div><strong>${f.name.trim()}</strong> <span style="color:var(--muted)">${f.serving}</span></div>`;
+                const div = document.createElement('div');
+                div.innerHTML = `<strong>${f.name.trim()}</strong> <span style="color:var(--muted)">${f.serving}</span>`;
+                servList.appendChild(div);
             }
         });
 
-        data.nutrition.foods.forEach(f => {
+        // Nutrition table rows
+        foods.forEach(f => {
             const row = document.createElement('tr');
             row.innerHTML = `
-                <td><span class="food-name">${f.name.trim()}</span><span class="conf-badge">${f.confidence}%</span></td>
+                <td>
+                    <span class="food-name">${f.name.trim()}</span>
+                    <span class="conf-badge">${f.confidence}%</span>
+                </td>
                 <td class="${f.calories === 'N/A' ? 'na' : 'num'}">${f.calories}</td>
                 <td class="${f.sugar    === 'N/A' ? 'na' : 'num'}">${f.sugar}</td>
                 <td class="${f.protein  === 'N/A' ? 'na' : 'num'}">${f.protein}</td>
@@ -354,7 +406,8 @@ function renderResults(data) {
             nutBody.appendChild(row);
         });
 
-        const t = data.nutrition.totals;
+        // Totals row
+        const t      = data.nutrition.totals;
         const totRow = document.createElement('tr');
         totRow.className = 'totals-row';
         totRow.innerHTML = `
@@ -365,23 +418,26 @@ function renderResults(data) {
             <td class="num">${t.fiber}</td>`;
         nutBody.appendChild(totRow);
 
-        const pills = [
+        // Summary pills
+        [
             { label: 'Calories', val: t.calories, unit: 'kcal' },
-            { label: 'Sugar',    val: t.sugar,    unit: 'g' },
-            { label: 'Protein',  val: t.protein,  unit: 'g' },
-            { label: 'Fiber',    val: t.fiber,    unit: 'g' },
-        ];
-        pills.forEach(p => {
-            summStrip.innerHTML += `
-                <div class="summary-pill">
-                    <div class="pill-label">${p.label}</div>
-                    <div class="pill-val">${p.val}</div>
-                    <div class="pill-unit">${p.unit}</div>
-                </div>`;
+            { label: 'Sugar',    val: t.sugar,    unit: 'g'    },
+            { label: 'Protein',  val: t.protein,  unit: 'g'    },
+            { label: 'Fiber',    val: t.fiber,    unit: 'g'    },
+        ].forEach(p => {
+            const pill = document.createElement('div');
+            pill.className = 'summary-pill';
+            pill.innerHTML = `
+                <div class="pill-label">${p.label}</div>
+                <div class="pill-val">${p.val}</div>
+                <div class="pill-unit">${p.unit}</div>`;
+            summStrip.appendChild(pill);
         });
+
     } else {
         nutSection.style.display = 'none';
     }
+
     results.style.display = 'block';
 }
 </script>
