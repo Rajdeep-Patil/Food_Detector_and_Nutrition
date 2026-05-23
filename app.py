@@ -10,7 +10,7 @@ import uuid
 import datetime
 from datetime import timezone
 
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, send_from_directory
 from werkzeug.utils import secure_filename
 
 from pymongo import MongoClient
@@ -89,12 +89,20 @@ mongo = MongoManager(
 
 
 # ================================================================
-# MODEL — load once, reuse across requests
+# MODEL — lazy load on first request (fixes OOM on Render free tier)
 # ================================================================
-predictor = PredictPipeline()
+predictor = None
 
-# ✅ Force garbage collection after model load to free unused RAM
-gc.collect()
+def get_predictor():
+    global predictor
+    if predictor is None:
+        logger.info("Loading model for the first time...")
+        print("⏳ Loading ML model...")
+        predictor = PredictPipeline()
+        gc.collect()
+        print("✅ ML Model Loaded!")
+        logger.info("Model loaded successfully.")
+    return predictor
 
 
 # ================================================================
@@ -209,6 +217,15 @@ def index():
     return render_template("index.html")
 
 
+@app.route("/favicon.ico")
+def favicon():
+    return send_from_directory(
+        os.path.join(app.root_path, "static"),
+        "favicon.ico",
+        mimetype="image/vnd.microsoft.icon"
+    )
+
+
 @app.route("/predict", methods=["POST"])
 def predict():
     try:
@@ -227,8 +244,8 @@ def predict():
         filepath  = os.path.join(app.config["UPLOAD_FOLDER"], filename)
         file.save(filepath)
 
-        # ---- Inference ------------------------------------------------
-        _labels, top5 = predictor.predict(filepath)
+        # ---- Inference (lazy load model) ------------------------------
+        _labels, top5 = get_predictor().predict(filepath)
 
         # ✅ Free memory after each inference
         gc.collect()
